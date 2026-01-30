@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__web-search-prime__webSearchPrime",
+      "Bash(if not exist docs mkdir docs)",
+      "WebSearch",
+      "mcp__zread__search_doc",
+      "mcp__zread__read_file",
+      "mcp__zread__get_repo_structure"
+    ]
+  }
+}

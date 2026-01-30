@@ -1,0 +1,248 @@
+# -*- coding: utf-8 -*-
+"""聊天和对话API"""
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+import uuid
+from datetime import datetime
+
+from app.database import get_db
+from app.core.deps import get_current_user
+from app.models import AIConversation, User, UserConfig
+from app.services.ai_service import AIService
+from app.services.ai.providers import Message
+
+router = APIRouter(prefix="/chat", tags=["聊天"])
+
+
+@router.post("/completions")
+async def chat_completion(
+    request_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """聊天补全"""
+    session_id = request_data.get("session_id") or str(uuid.uuid4())
+    message_content = request_data.get("message")
+
+    # 保存用户消息
+    user_message = AIConversation(
+        user_id=current_user.id,
+        session_id=session_id,
+        role="user",
+        content=message_content
+    )
+    db.add(user_message)
+
+    # 获取用户配置
+    result = await db.execute(
+        select(UserConfig).where(UserConfig.user_id == current_user.id)
+    )
+    config = result.scalar_one_or_none()
+
+    # 构建对话历史
+    history_result = await db.execute(
+        select(AIConversation)
+        .where(
+            AIConversation.session_id == session_id,
+            AIConversation.user_id == current_user.id
+        )
+        .order_by(AIConversation.created_at)
+        .limit(20)
+    )
+    history = history_result.scalars().all()
+
+    # 构建消息列表
+    messages = [
+        Message(role="system", content="你是智慧城市控制大脑，负责理解用户自然语言指令并控制系统动作。")
+    ]
+
+    for msg in history:
+        messages.append(Message(role=msg.role, content=msg.content))
+
+    # 获取Function Calling工具定义
+    tools = get_function_tools()
+
+    # 调用AI服务
+    ai_service = AIService(db)
+    try:
+        response = await ai_service.chat_completion(
+            user_id=current_user.id,
+            messages=messages,
+            model=config.model_name if config else "glm-4-flash",
+            temperature=float(config.temperature) if config else 0.7,
+            tools=tools
+        )
+
+        # 保存助手回复
+        assistant_message = AIConversation(
+            user_id=current_user.id,
+            session_id=session_id,
+            role="assistant",
+            content=response.content,
+            model_name=config.model_name if config else "glm-4-flash",
+            tokens_used=response.tokens_used.get("total_tokens", 0)
+        )
+        db.add(assistant_message)
+        await db.commit()
+
+        # 提取tool_calls
+        actions = []
+        if response.tool_calls:
+            for tc in response.tool_calls:
+                actions.append({
+                    "id": tc.get("id"),
+                    "type": tc.get("type"),
+                    "function": tc.get("function", {})
+                })
+
+        return {
+            "code": 200,
+            "data": {
+                "session_id": session_id,
+                "message": {
+                    "role": "assistant",
+                    "content": response.content
+                },
+                "actions": actions if actions else None,
+                "tokens_used": response.tokens_used
+            }
+        }
+
+    except Exception as e:
+        # 保存错误信息
+        error_message = AIConversation(
+            user_id=current_user.id,
+            session_id=session_id,
+            role="assistant",
+            content=f"抱歉，发生了错误：{str(e)}"
+        )
+        db.add(error_message)
+        await db.commit()
+
+        raise
+
+
+def get_function_tools():
+    """获取Function Calling工具定义"""
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": "fly_to",
+                "description": "控制3D相机飞行到指定位置",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "longitude": {
+                            "type": "number",
+                            "description": "目标经度"
+                        },
+                        "latitude": {
+                            "type": "number",
+                            "description": "目标纬度"
+                        },
+                        "height": {
+                            "type": "number",
+                            "description": "飞行高度(米)"
+                        }
+                    },
+                    "required": ["longitude", "latitude"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "highlight_buildings",
+                "description": "高亮显示指定的建筑物",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "building_ids": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "建筑ID列表"
+                        },
+                        "color": {
+                            "type": "string",
+                            "description": "高亮颜色(HEX)"
+                        }
+                    },
+                    "required": ["building_ids", "color"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "query_buildings",
+                "description": "查询符合条件的建筑物列表",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "city": {"type": "string"},
+                        "district": {"type": "string"},
+                        "min_height": {"type": "number"},
+                        "category": {"type": "string"}
+                    }
+                }
+            }
+        }
+    ]
+
+
+@router.get("/history/{session_id}")
+async def get_chat_history(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取对话历史"""
+    result = await db.execute(
+        select(AIConversation)
+        .where(
+            AIConversation.session_id == session_id,
+            AIConversation.user_id == current_user.id
+        )
+        .order_by(AIConversation.created_at)
+        .limit(50)
+    )
+    conversations = result.scalars().all()
+
+    return {
+        "code": 200,
+        "data": [
+            {
+                "role": conv.role,
+                "content": conv.content,
+                "created_at": conv.created_at.isoformat()
+            }
+            for conv in conversations
+        ]
+    }
+
+
+@router.delete("/history/{session_id}")
+async def clear_chat_history(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """清空对话历史"""
+    from sqlalchemy import delete as sql_delete
+
+    await db.execute(
+        sql_delete(AIConversation)
+        .where(
+            AIConversation.session_id == session_id,
+            AIConversation.user_id == current_user.id
+        )
+    )
+    await db.commit()
+
+    return {
+        "code": 200,
+        "message": "对话历史已清空"
+    }
