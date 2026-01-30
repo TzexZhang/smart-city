@@ -12,9 +12,8 @@ from app.core.config import settings
 # 密码加密上下文
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# 加密套件
-fernet = Fernet(settings.ENCRYPTION_KEY.encode()[:32].ljust(32, b'=')[:32])
-fernet_suite = Fernet(fernet)
+# 加密套件 - ENCRYPTION_KEY应该是base64编码的32字节密钥
+fernet_suite = Fernet(settings.ENCRYPTION_KEY)
 
 
 def hash_password(password: str) -> str:

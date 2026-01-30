@@ -1,15 +1,29 @@
 # -*- coding: utf-8 -*-
-"""后端依赖"""
-
+# FastAPI and web framework
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
+
+# Database
 sqlalchemy==2.0.23
 aiomysql==0.2.0
 pymysql==1.1.0
+
+# Data validation
 pydantic==2.5.0
 pydantic-settings==2.1.0
+
+# Environment variables
+python-dotenv==1.0.0
+
+# Security
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+
+# HTTP client
 python-multipart==0.0.6
+
+# AI SDK
 openai==1.12.0
+
+# Async HTTP client
 aiohttp==3.9.1

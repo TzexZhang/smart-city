@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Pydantic schemas for data validation"""
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional
 from datetime import datetime
 
@@ -89,6 +89,8 @@ class ModelInfoResponse(BaseModel):
 # 用户配置相关
 class UserConfigUpdate(BaseModel):
     """更新用户配置"""
+    model_config = ConfigDict(protected_namespaces=())
+
     provider: Optional[str] = None
     model_name: Optional[str] = None
     persona: Optional[str] = None
@@ -100,6 +102,8 @@ class UserConfigUpdate(BaseModel):
 
 class UserConfigResponse(BaseModel):
     """用户配置响应"""
+    model_config = ConfigDict(protected_namespaces=(), from_attributes=True)
+
     provider: str
     model_name: str
     persona: str
@@ -107,9 +111,6 @@ class UserConfigResponse(BaseModel):
     top_p: float
     auto_execute: bool
     default_city: str
-
-    class Config:
-        from_attributes = True
 
 
 # 建筑相关
