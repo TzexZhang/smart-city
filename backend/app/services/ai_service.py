@@ -112,27 +112,40 @@ class AIService:
             if provider_code and provider_config.provider_code != provider_code:
                 continue
 
-            provider = AIProviderFactory.create_provider(
-                provider_code=provider_config.provider_code,
-                api_key=decrypt_api_key(provider_config.api_key_encrypted)
-            )
+            # 跳过没有配置API Key的provider
+            if not provider_config.api_key_encrypted:
+                continue
 
-            provider_models = await provider.list_models()
-            models.extend([
-                {
-                    "code": m.code,
-                    "name": m.name,
-                    "description": m.description,
-                    "context_length": m.context_length,
-                    "is_free": m.is_free,
-                    "input_price": float(m.input_price) if m.input_price else 0,
-                    "output_price": float(m.output_price) if m.output_price else 0,
-                    "supports_function_calling": m.supports_function_calling,
-                    "supports_vision": m.supports_vision,
-                    "max_tokens": m.max_tokens
-                }
-                for m in provider_models
-            ])
+            try:
+                provider = AIProviderFactory.create_provider(
+                    provider_code=provider_config.provider_code,
+                    api_key=decrypt_api_key(provider_config.api_key_encrypted),
+                    base_url=provider_config.base_url
+                )
+
+                provider_models = await provider.list_models()
+                models.extend([
+                    {
+                        "code": m.code,
+                        "name": m.name,
+                        "description": m.description,
+                        "context_length": m.context_length,
+                        "is_free": m.is_free,
+                        "input_price": float(m.input_price) if m.input_price else 0,
+                        "output_price": float(m.output_price) if m.output_price else 0,
+                        "supports_function_calling": m.supports_function_calling,
+                        "supports_vision": m.supports_vision,
+                        "max_tokens": m.max_tokens
+                    }
+                    for m in provider_models
+                ])
+            except Exception as e:
+                # 跳过初始化失败的provider
+                continue
+
+        # 如果没有可用的模型，返回默认免费模型
+        if not models:
+            return await self._get_free_models()
 
         return models
 

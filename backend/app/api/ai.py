@@ -63,8 +63,8 @@ async def add_provider(
             detail="该Provider已存在"
         )
 
-    # 加密API Key
-    encrypted_key = encrypt_api_key(provider_data.api_key)
+    # 加密API Key（如果提供）
+    encrypted_key = encrypt_api_key(provider_data.api_key) if provider_data.api_key else None
 
     new_provider = AIProvider(
         user_id=current_user.id,

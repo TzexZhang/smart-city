@@ -11,7 +11,9 @@
       "Bash(ls:*)",
       "Bash(python:*)",
       "Bash(npm run build:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(findstr:*)",
+      "Bash(pip install:*)"
     ]
   }
 }

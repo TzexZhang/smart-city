@@ -51,15 +51,22 @@ async def chat_completion(
         .order_by(AIConversation.created_at)
         .limit(20)
     )
-    history = history_result.scalars().all()
+    history = list(history_result.scalars().all())
 
-    # 构建消息列表
-    messages = [
-        Message(role="system", content="你是智慧城市控制大脑，负责理解用户自然语言指令并控制系统动作。")
-    ]
+    # 构建消息列表（排除最后一条，那是刚刚保存的当前用户消息）
+    messages = []
+    prev_messages = history[:-1]
 
-    for msg in history:
+    # 如果有之前的对话历史，添加system提示
+    if prev_messages:
+        messages.append(Message(role="system", content="你是智慧城市控制大脑，负责理解用户自然语言指令并控制系统动作。"))
+
+    # 添加之前的对话消息
+    for msg in prev_messages:
         messages.append(Message(role=msg.role, content=msg.content))
+
+    # 添加当前用户消息
+    messages.append(Message(role="user", content=message_content))
 
     # 获取Function Calling工具定义
     tools = get_function_tools()

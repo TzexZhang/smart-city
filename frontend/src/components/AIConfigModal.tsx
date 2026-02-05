@@ -31,6 +31,7 @@ const AIConfigModal = ({ visible, onCancel }: { visible: boolean; onCancel: () =
   const [providers, setProviders] = useState<Provider[]>([])
   const [models, setModels] = useState<Model[]>([])
   const [loading, setLoading] = useState(false)
+  const [selectedProvider, setSelectedProvider] = useState<string>('zhipu')
   const [form] = Form.useForm()
 
   useEffect(() => {
@@ -38,6 +39,11 @@ const AIConfigModal = ({ visible, onCancel }: { visible: boolean; onCancel: () =
       loadData()
     }
   }, [visible])
+
+  // 当选择的provider改变时，更新API Key的必填状态
+  const handleProviderChange = (value: string) => {
+    setSelectedProvider(value)
+  }
 
   const loadData = async () => {
     setLoading(true)
@@ -61,6 +67,7 @@ const AIConfigModal = ({ visible, onCancel }: { visible: boolean; onCancel: () =
       message.success('添加成功')
       loadData()
       form.resetFields()
+      setSelectedProvider('zhipu')
     } catch (error: any) {
       message.error(error.response?.data?.detail || '添加失败')
     }
@@ -92,10 +99,20 @@ const AIConfigModal = ({ visible, onCancel }: { visible: boolean; onCancel: () =
     }
   }
 
+  // 判断是否为免费模型
+  const isFreeProvider = (providerCode: string) => {
+    const freeProviders = ['zhipu', 'qwen', 'deepseek', 'ernie', 'xinghuo']
+    return freeProviders.includes(providerCode)
+  }
+
   const providerOptions = [
-    { value: 'zhipu', label: '智谱AI', free: 'GLM-4-Flash' },
-    { value: 'qwen', label: '通义千问', free: 'Qwen-Turbo' },
-    { value: 'deepseek', label: 'DeepSeek', free: 'DeepSeek-Chat' },
+    { value: 'zhipu', label: '智谱AI', freeModel: 'GLM-4-Flash', isFree: true },
+    { value: 'qwen', label: '通义千问', freeModel: 'Qwen-Turbo', isFree: true },
+    { value: 'deepseek', label: 'DeepSeek', freeModel: 'DeepSeek-Chat', isFree: true },
+    { value: 'openai', label: 'OpenAI', freeModel: null, isFree: false },
+    { value: 'anthropic', label: 'Anthropic Claude', freeModel: null, isFree: false },
+    { value: 'ernie', label: '百度文心一言', freeModel: 'ERNIE Speed', isFree: true },
+    { value: 'xinghuo', label: '讯飞星火', freeModel: 'Spark Lite', isFree: true },
   ]
 
   return (
@@ -115,10 +132,13 @@ const AIConfigModal = ({ visible, onCancel }: { visible: boolean; onCancel: () =
                 label="提供商"
                 rules={[{ required: true }]}
               >
-                <Select style={{ width: 200 }}>
+                <Select
+                  style={{ width: 200 }}
+                  onChange={handleProviderChange}
+                >
                   {providerOptions.map((opt) => (
                     <Option key={opt.value} value={opt.value}>
-                      {opt.label} (免费: {opt.free})
+                      {opt.label} {opt.isFree && `(免费: ${opt.freeModel})`}
                     </Option>
                   ))}
                 </Select>
@@ -136,9 +156,16 @@ const AIConfigModal = ({ visible, onCancel }: { visible: boolean; onCancel: () =
               <Form.Item
                 name="api_key"
                 label="API Key"
-                rules={[{ required: true }]}
+                rules={!isFreeProvider(selectedProvider) ? [{ required: true, message: '请输入API Key' }] : []}
               >
-                <Input.Password placeholder="请输入API Key" style={{ width: 300 }} />
+                <Input.Password
+                  placeholder={
+                    isFreeProvider(selectedProvider)
+                      ? '免费模型无需API Key（可选）'
+                      : '请输入API Key'
+                  }
+                  style={{ width: 300 }}
+                />
               </Form.Item>
 
               <Form.Item name="base_url" label="API地址（可选）">
@@ -151,6 +178,11 @@ const AIConfigModal = ({ visible, onCancel }: { visible: boolean; onCancel: () =
                 </Button>
               </Form.Item>
             </Form>
+            {isFreeProvider(selectedProvider) && (
+              <div style={{ marginTop: 8, fontSize: 12, color: '#52c41a' }}>
+                ✓ 该提供商有免费模型，无需API Key即可使用
+              </div>
+            )}
           </Card>
 
           <Card title="已配置的提供商" loading={loading}>

@@ -2,7 +2,16 @@
 """AI服务工厂"""
 
 from typing import Dict, Type
-from app.services.ai.providers import BaseAIProvider, ZhipuAIProvider, QwenAIProvider, DeepSeekAIProvider
+from app.services.ai.providers import (
+    BaseAIProvider,
+    ZhipuAIProvider,
+    QwenAIProvider,
+    DeepSeekAIProvider,
+    OpenAIProvider,
+    AnthropicProvider,
+    ErnieProvider,
+    XingHuoProvider
+)
 
 
 class AIProviderFactory:
@@ -12,6 +21,10 @@ class AIProviderFactory:
         "zhipu": ZhipuAIProvider,
         "qwen": QwenAIProvider,
         "deepseek": DeepSeekAIProvider,
+        "openai": OpenAIProvider,
+        "anthropic": AnthropicProvider,
+        "ernie": ErnieProvider,
+        "xinghuo": XingHuoProvider,
     }
 
     @classmethod

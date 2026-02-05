@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Input, Button, List, Typography, Tag, Spin, message } from 'antd'
+import { Input, Button, List, Typography, Tag, message } from 'antd'
 import { SendOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons'
 import { chatApi } from '../services'
+import CesiumViewer from '../components/CesiumViewer'
 
 const { TextArea } = Input
-const { Text, Title } = Typography
+const { Title } = Typography
 
 interface Message {
   role: string
@@ -13,29 +14,6 @@ interface Message {
   actions?: any[]
   tokens_used?: any
 }
-
-const CesiumPlaceholder = () => (
-  <div
-    id="cesiumContainer"
-    style={{
-      width: '100%',
-      height: 'calc(100vh - 200px)',
-      background: '#000',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: '#fff',
-    }}
-  >
-    <div style={{ textAlign: 'center' }}>
-      <Title level={3} style={{ color: '#fff' }}>
-        3D数字孪生城市
-      </Title>
-      <Text style={{ color: '#999' }}>Cesium.js 加载中...</Text>
-      <Spin style={{ marginTop: 16 }} />
-    </div>
-  </div>
-)
 
 const HomePage = () => {
   const [messages, setMessages] = useState<Message[]>([])
@@ -109,7 +87,7 @@ const HomePage = () => {
     <div style={{ display: 'flex', height: 'calc(100vh - 64px)' }}>
       {/* Cesium 3D地图 */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        <CesiumPlaceholder />
+        <CesiumViewer />
       </div>
 
       {/* AI对话面板 */}

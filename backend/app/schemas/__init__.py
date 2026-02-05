@@ -28,12 +28,27 @@ class UserLogin(BaseModel):
 class UserResponse(UserBase):
     """用户响应"""
     id: str
+    phone: Optional[str] = None
     avatar_url: Optional[str] = None
     status: int
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class UserUpdate(BaseModel):
+    """更新用户信息"""
+    username: Optional[str] = Field(None, min_length=3, max_length=50)
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = Field(None, max_length=100)
+    phone: Optional[str] = Field(None, max_length=20)
+
+
+class PasswordUpdate(BaseModel):
+    """修改密码"""
+    old_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8, max_length=100)
 
 
 class Token(BaseModel):
@@ -49,7 +64,7 @@ class AIProviderCreate(BaseModel):
     """创建AI Provider"""
     provider_code: str
     provider_name: str
-    api_key: str
+    api_key: Optional[str] = None  # 免费模型可以不需要API Key
     api_secret: Optional[str] = None
     base_url: Optional[str] = None
 

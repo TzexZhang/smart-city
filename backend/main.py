@@ -4,7 +4,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from app.core.config import settings
+
+# 创建上传目录
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 # 创建FastAPI应用
 app = FastAPI(
@@ -35,6 +41,9 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 app.include_router(ai.router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1")
+
+# 挂载静态文件服务
+app.mount("/static", StaticFiles(directory="uploads"), name="static")
 
 
 @app.get("/")
