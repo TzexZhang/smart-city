@@ -9,7 +9,9 @@
       "mcp__zread__get_repo_structure",
       "Bash(test:*)",
       "Bash(ls:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(npm run build:*)",
+      "Bash(tree:*)"
     ]
   }
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Layout, Menu, Avatar, Dropdown, Button, Modal } from 'antd'
+import { Layout, Menu, Avatar, Dropdown } from 'antd'
 import {
   HomeOutlined,
   SettingOutlined,
@@ -38,9 +38,7 @@ const MainLayout = () => {
       label: 'AI配置',
       onClick: () => setConfigModalVisible(true),
     },
-    {
-      type: 'divider',
-    },
+    { type: 'divider' as const },
     {
       key: 'logout',
       icon: <LogoutOutlined />,

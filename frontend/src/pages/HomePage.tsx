@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Card, Input, Button, List, Typography, Space, Tag, Spin } from 'antd'
+import React, { useState, useEffect, useRef } from 'react'
+import { Input, Button, List, Typography, Tag, Spin, message } from 'antd'
 import { SendOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons'
 import { chatApi } from '../services'
 
@@ -41,8 +41,8 @@ const HomePage = () => {
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [loading, setLoading] = useState(false)
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const messagesEndRef = React.useRef<HTMLDivElement>(null)
+  const [sessionId, setSessionId] = useState<string | undefined>(undefined)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })

@@ -1,3 +1,4 @@
+import React from 'react'
 import { Form, Input, Button, Card, message } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '../services'
@@ -82,8 +83,9 @@ const RegisterPage = () => {
                     return Promise.resolve()
                   }
                   return Promise.reject(new Error('两次输入的密码不一致'))
-                },
-              })}
+                }
+              })
+            ]}
           >
             <Input.Password placeholder="请再次输入密码" size="large" />
           </Form.Item>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Card, List, Form, Input, Select, Button, Tag, message, Modal, Tabs, Switch } from 'antd'
+import { Card, List, Form, Input, Select, Button, Tag, message, Modal, Tabs } from 'antd'
 import { PlusOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { aiApi } from '../services'
 
