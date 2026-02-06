@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Input, Button, List, Typography, Tag, message } from 'antd'
-import { SendOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons'
+import { Input, Button, List, Typography, Tag, message, Alert } from 'antd'
+import { SendOutlined, RobotOutlined, UserOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { chatApi } from '../services'
 import CesiumViewer from '../components/CesiumViewer'
+import { AIActionExecutor } from '../utils/aiActionExecutor'
 
 const { TextArea } = Input
-const { Title } = Typography
+const { Title, Text } = Typography
 
 interface Message {
   role: string
@@ -13,6 +14,7 @@ interface Message {
   created_at: string
   actions?: any[]
   tokens_used?: any
+  executionResult?: { success: number; failed: number }
 }
 
 const HomePage = () => {
@@ -21,6 +23,7 @@ const HomePage = () => {
   const [loading, setLoading] = useState(false)
   const [sessionId, setSessionId] = useState<string | undefined>(undefined)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const actionExecutorRef = useRef<AIActionExecutor | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -29,6 +32,12 @@ const HomePage = () => {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // 当 viewer ready 时初始化 action executor
+  useEffect(() => {
+    // 注意：需要从 CesiumContext 获取 viewer
+    // 这里暂时留空，需要集成 CesiumContext
+  }, [])
 
   const handleSend = async () => {
     if (!inputValue.trim() || loading) return
@@ -58,6 +67,13 @@ const HomePage = () => {
         setSessionId(res.data.session_id)
       }
 
+      // 执行 AI 返回的 actions
+      let executionResult
+      if (res.data.actions && res.data.actions.length > 0 && actionExecutorRef.current) {
+        executionResult = await actionExecutorRef.current.executeActions(res.data.actions)
+        message.info(`已执行 ${executionResult.success} 个动作${executionResult.failed > 0 ? `，失败 ${executionResult.failed} 个` : ''}`)
+      }
+
       // 添加AI回复
       setMessages((prev) => [
         ...prev,
@@ -67,6 +83,7 @@ const HomePage = () => {
           created_at: new Date().toISOString(),
           actions: res.data.actions,
           tokens_used: res.data.tokens_used,
+          executionResult,
         },
       ])
     } catch (error: any) {
@@ -165,9 +182,17 @@ const HomePage = () => {
                         </div>
                       )}
                       {msg.actions && msg.actions.length > 0 && (
-                        <Tag color="blue" style={{ marginTop: 8 }}>
-                          已执行 {msg.actions.length} 个动作
-                        </Tag>
+                        <div style={{ marginTop: 8 }}>
+                          <Tag color="blue" icon={<CheckCircleOutlined />}>
+                            AI 返回 {msg.actions.length} 个动作
+                          </Tag>
+                          {msg.executionResult && (
+                            <Text style={{ fontSize: 11, marginLeft: 8 }}>
+                              成功: {msg.executionResult.success} |
+                              失败: {msg.executionResult.failed}
+                            </Text>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>

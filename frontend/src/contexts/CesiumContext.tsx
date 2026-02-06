@@ -1,30 +1,42 @@
-import { useEffect, useRef, useState } from 'react'
+import { createContext, useContext, ReactNode, useRef, useState, useEffect } from 'react'
 import * as Cesium from 'cesium'
 
 // 配置 Cesium Ion Access Token
-// 请在 https://ion.cesium.com/tokens 获取您的免费 token
 const VITE_CESIUM_ION_TOKEN = import.meta.env.VITE_CESIUM_ION_TOKEN || ''
 
 if ((Cesium as any).Ion && VITE_CESIUM_ION_TOKEN) {
   (Cesium as any).Ion.defaultAccessToken = VITE_CESIUM_ION_TOKEN
 }
 
-const CesiumViewer = () => {
-  const cesiumContainer = useRef<HTMLDivElement>(null)
-  const viewerRef = useRef<Cesium.Viewer | null>(null)
+interface CesiumContextType {
+  viewer: Cesium.Viewer | null
+  viewerReady: boolean
+}
+
+const CesiumContext = createContext<CesiumContextType>({
+  viewer: null,
+  viewerReady: false
+})
+
+export const useCesiumViewer = () => useContext(CesiumContext)
+
+export const CesiumProvider = ({ children }: { children: ReactNode }) => {
+  const [viewer, setViewer] = useState<Cesium.Viewer | null>(null)
+  const [viewerReady, setViewerReady] = useState(false)
+  const cesiumContainerRef = useRef<HTMLDivElement>(null)
   const [buildingsLoaded, setBuildingsLoaded] = useState(false)
 
   useEffect(() => {
-    if (!cesiumContainer.current) return
+    if (!cesiumContainerRef.current) return
 
     /**
      * 添加示例建筑
      */
-    const addSampleBuildings = (viewer: Cesium.Viewer) => {
+    const addSampleBuildings = (cesiumViewer: Cesium.Viewer) => {
       try {
         const viewerPosition = Cesium.Cartesian3.fromDegrees(116.3974, 39.9093, 0)
 
-        // 添加中国尊（模拟）
+        // 添加中国尊
         const positions = []
         const numberOfPoints = 16
         for (let i = 0; i < numberOfPoints; i++) {
@@ -36,9 +48,9 @@ const CesiumViewer = () => {
             new Cesium.Cartesian3(viewerPosition.x + x, viewerPosition.y + y, 0)
           )
         }
-        positions.push(positions[0]) // 闭合多边形
+        positions.push(positions[0])
 
-        viewer.entities.add({
+        cesiumViewer.entities.add({
           name: '中国尊',
           polygon: {
             hierarchy: new Cesium.PolygonHierarchy(positions),
@@ -56,7 +68,7 @@ const CesiumViewer = () => {
           const lon = 116.3974 + (Math.random() - 0.5) * 0.01
           const lat = 39.9093 + (Math.random() - 0.5) * 0.01
 
-          viewer.entities.add({
+          cesiumViewer.entities.add({
             name: `建筑 ${i + 1}`,
             position: Cesium.Cartesian3.fromDegrees(lon, lat, 0),
             box: {
@@ -77,7 +89,6 @@ const CesiumViewer = () => {
       try {
         // 创建 Viewer 配置
         const viewerOptions: any = {
-          // 基础控件设置
           timeline: false,
           animation: false,
           baseLayerPicker: false,
@@ -92,21 +103,18 @@ const CesiumViewer = () => {
           imageryProvider: false,
         }
 
-        // 如果有 token，使用 Cesium World Terrain（真实地形）
+        // 如果有 token，使用 Cesium World Terrain
         if (VITE_CESIUM_ION_TOKEN) {
           viewerOptions.terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(1, {
             requestVertexNormals: true,
             requestWaterMask: true,
           })
         } else {
-          // 没有 token 时使用椭球体地形（无起伏）
           viewerOptions.terrainProvider = new Cesium.EllipsoidTerrainProvider()
         }
 
         // 创建Cesium Viewer
-        const viewer = new Cesium.Viewer(cesiumContainer.current, viewerOptions)
-
-        viewerRef.current = viewer
+        const cesiumViewer = new Cesium.Viewer(cesiumContainerRef.current, viewerOptions)
 
         // 添加高德地图作为主底图
         const amapImageryProvider = new Cesium.UrlTemplateImageryProvider({
@@ -115,21 +123,21 @@ const CesiumViewer = () => {
           maximumLevel: 18,
           credit: '高德地图',
         })
-        viewer.imageryLayers.addImageryProvider(amapImageryProvider)
+        cesiumViewer.imageryLayers.addImageryProvider(amapImageryProvider)
 
-        // 如果有 token，添加全球卫星影像作为第二图层（增强视觉效果）
+        // 如果有 token，添加全球卫星影像
         if (VITE_CESIUM_ION_TOKEN) {
           try {
             const ionImagery = await Cesium.IonImageryProvider.fromAssetId(2)
-            ionImagery.alpha = 0.3 // 30% 透明度
-            viewer.imageryLayers.addImageryProvider(ionImagery, 1)
+            ionImagery.alpha = 0.3
+            cesiumViewer.imageryLayers.addImageryProvider(ionImagery, 1)
           } catch (error) {
-            console.warn('无法加载 Cesium Ion 影像，可能需要配置正确的 token')
+            console.warn('无法加载 Cesium Ion 影像')
           }
         }
 
         // 设置初始视角到北京
-        viewer.camera.setView({
+        cesiumViewer.camera.setView({
           destination: Cesium.Cartesian3.fromDegrees(116.3974, 39.9093, 50000),
           orientation: {
             heading: Cesium.Math.toRadians(0),
@@ -138,14 +146,14 @@ const CesiumViewer = () => {
           }
         })
 
-        // 启用光照效果（让地图有立体感）
-        viewer.scene.globe.enableLighting = true
+        // 启用光照效果
+        cesiumViewer.scene.globe.enableLighting = true
 
-        // 如果有 token，添加 OSM Buildings（全球3.5亿建筑）
+        // 如果有 token，添加 OSM Buildings
         if (VITE_CESIUM_ION_TOKEN && !buildingsLoaded) {
           try {
-            const buildingsTileset = await Cesium.createOsmBuildingsAsync();
-            viewer.scene.primitives.add(buildingsTileset);
+            const buildingsTileset = await Cesium.createOsmBuildingsAsync()
+            cesiumViewer.scene.primitives.add(buildingsTileset)
             setBuildingsLoaded(true)
             console.log('✅ Cesium OSM Buildings 加载成功')
           } catch (error) {
@@ -154,7 +162,10 @@ const CesiumViewer = () => {
         }
 
         // 添加示例建筑
-        addSampleBuildings(viewer)
+        addSampleBuildings(cesiumViewer)
+
+        setViewer(cesiumViewer)
+        setViewerReady(true)
 
       } catch (error) {
         console.error('Cesium初始化失败:', error)
@@ -165,23 +176,25 @@ const CesiumViewer = () => {
 
     // 清理函数
     return () => {
-      if (viewerRef.current) {
-        viewerRef.current.destroy()
-        viewerRef.current = null
+      if (viewer) {
+        viewer.destroy()
+        setViewer(null)
+        setViewerReady(false)
       }
     }
   }, [buildingsLoaded])
 
   return (
-    <div
-      ref={cesiumContainer}
-      style={{
-        width: '100%',
-        height: '100%',
-        background: '#1a1a1a',
-      }}
-    />
+    <CesiumContext.Provider value={{ viewer, viewerReady }}>
+      <div
+        ref={cesiumContainerRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          background: '#1a1a1a',
+        }}
+      />
+      {children}
+    </CesiumContext.Provider>
   )
 }
-
-export default CesiumViewer

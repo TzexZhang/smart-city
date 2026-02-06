@@ -13,7 +13,11 @@
       "Bash(npm run build:*)",
       "Bash(tree:*)",
       "Bash(findstr:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(netstat:*)",
+      "Bash(.venvScriptsactivate)",
+      "Bash(.venvScriptspip.exe:*)",
+      "mcp__web-reader__webReader"
     ]
   }
 }

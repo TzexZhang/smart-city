@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """数据库模型"""
 
-from sqlalchemy import Column, String, Boolean, Integer, Text, DECIMAL, DateTime, Index, ForeignKey
+from sqlalchemy import Column, String, Boolean, Integer, Text, DECIMAL, DateTime, Index, ForeignKey, JSON, Date, BigInteger
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.mysql import BOOLEAN
 import uuid
+import json
 
 from app.database import Base
 
@@ -178,3 +179,73 @@ class AIUsageStats(Base):
     estimated_cost = Column(DECIMAL(10, 4), default=0, comment="估算成本")
     created_at = Column(DateTime, nullable=False, comment="创建时间")
     updated_at = Column(DateTime, nullable=False, comment="更新时间")
+
+
+class SimulationRecord(Base):
+    """空间模拟记录表"""
+    __tablename__ = "tb_simulation_records"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid, comment="模拟ID")
+    user_id = Column(String(36), ForeignKey("tb_users.id", ondelete="CASCADE"), nullable=False, comment="用户ID")
+    simulation_type = Column(String(50), nullable=False, comment="模拟类型")
+    center_lon = Column(DECIMAL(11, 8), nullable=False, comment="中心经度")
+    center_lat = Column(DECIMAL(11, 8), nullable=False, comment="中心纬度")
+    radius = Column(DECIMAL(10, 2), comment="半径(米)")
+    affected_building_ids = Column(JSON, comment="受影响建筑ID列表")
+    impact_summary = Column(JSON, comment="影响摘要")
+    status = Column(String(20), default="pending", comment="状态")
+    created_at = Column(DateTime, nullable=False, comment="创建时间")
+    updated_at = Column(DateTime, nullable=False, comment="更新时间")
+
+
+class CityEvent(Base):
+    """城市事件表"""
+    __tablename__ = "tb_city_events"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid, comment="事件ID")
+    event_name = Column(String(200), nullable=False, comment="事件名称")
+    event_type = Column(String(50), nullable=False, comment="事件类型")
+    event_date = Column(DateTime, comment="事件时间")
+    longitude = Column(DECIMAL(11, 8), comment="经度")
+    latitude = Column(DECIMAL(11, 8), comment="纬度")
+    radius = Column(DECIMAL(10, 2), comment="影响半径")
+    severity = Column(Integer, comment="严重程度 1-5")
+    status = Column(String(20), default="active", comment="状态")
+    description = Column(Text, comment="描述")
+    affected_areas = Column(JSON, comment="受影响区域")
+    response_actions = Column(JSON, comment="响应措施")
+    created_at = Column(DateTime, nullable=False, comment="创建时间")
+    updated_at = Column(DateTime, nullable=False, comment="更新时间")
+
+
+class AnalysisReport(Base):
+    """分析报告表"""
+    __tablename__ = "tb_analysis_reports"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid, comment="报告ID")
+    user_id = Column(String(36), ForeignKey("tb_users.id", ondelete="CASCADE"), nullable=False, comment="用户ID")
+    report_type = Column(String(50), nullable=False, comment="报告类型")
+    title = Column(String(200), nullable=False, comment="报告标题")
+    content = Column(Text, nullable=False, comment="报告内容(Markdown)")
+    summary = Column(JSON, comment="摘要数据")
+    visualization_config = Column(JSON, comment="可视化配置")
+    ai_model = Column(String(50), comment="使用的AI模型")
+    generated_at = Column(DateTime, nullable=False, comment="生成时间")
+    created_at = Column(DateTime, nullable=False, comment="创建时间")
+
+
+class ExecutionConfig(Base):
+    """执行配置表"""
+    __tablename__ = "tb_execution_configs"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid, comment="配置ID")
+    user_id = Column(String(36), ForeignKey("tb_users.id", ondelete="CASCADE"), nullable=False, comment="用户ID")
+    execution_mode = Column(String(20), default="auto", comment="执行模式")
+    confirm_required_actions = Column(JSON, comment="需要确认的动作")
+    auto_approve_actions = Column(JSON, comment="自动批准的动作")
+    log_all_actions = Column(BOOLEAN, default=True, comment="记录所有动作")
+    show_geek_mode = Column(BOOLEAN, default=False, comment="显示极客模式")
+    max_undo_count = Column(Integer, default=10, comment="最大撤销次数")
+    created_at = Column(DateTime, nullable=False, comment="创建时间")
+    updated_at = Column(DateTime, nullable=False, comment="更新时间")
+
