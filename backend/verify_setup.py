@@ -155,7 +155,6 @@ def main():
             print("\n建议:")
             print("1. 确保 MySQL 服务正在运行")
             print("2. 运行数据库迁移: alembic upgrade head")
-            print("3. 加载示例数据: python database/seed_sample_data.py")
         else:
             print("\n✅ 系统已准备就绪！")
             print("可以启动服务: uvicorn main:app --reload")

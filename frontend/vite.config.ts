@@ -43,7 +43,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'cesium': ['cesium'],
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'ui-vendor': ['antd', '@ant-design/icons'],
         },

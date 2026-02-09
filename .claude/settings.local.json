@@ -17,7 +17,18 @@
       "Bash(netstat:*)",
       "Bash(.venvScriptsactivate)",
       "Bash(.venvScriptspip.exe:*)",
-      "mcp__web-reader__webReader"
+      "mcp__web-reader__webReader",
+      "Bash(del:*)",
+      "Bash(dir:*)",
+      "Bash(grep:*)",
+      "Bash(npx tsc:*)",
+      "Bash(tasklist:*)",
+      "Bash(taskkill:*)",
+      "Bash(timeout:*)",
+      "Bash(.venvScriptspython.exe:*)",
+      "Bash(\".venv\\\\Scripts\\\\python.exe\" -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000)",
+      "Bash(\".venv\\\\Scripts\\\\python.exe\" -m uvicorn main:app --reload --host 0.0.0.0 --port 8000)",
+      "Bash(curl:*)"
     ]
   }
 }

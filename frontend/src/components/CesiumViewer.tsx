@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import * as Cesium from 'cesium'
+import MapLayerControl from './MapLayerControl'
 
 // 配置 Cesium Ion Access Token
 // 请在 https://ion.cesium.com/tokens 获取您的免费 token
@@ -15,7 +16,20 @@ const CesiumViewer = () => {
   const [buildingsLoaded, setBuildingsLoaded] = useState(false)
 
   useEffect(() => {
-    if (!cesiumContainer.current) return
+    // 确保容器存在并且已经挂载到 DOM
+    if (!cesiumContainer.current) {
+      console.warn('⏳ Cesium 容器未准备好，等待下次渲染...')
+      return
+    }
+
+    // 使用 setTimeout 确保 DOM 完全渲染
+    const initTimer = setTimeout(() => {
+      if (!cesiumContainer.current) {
+        console.error('❌ Cesium 容器在延迟后仍然未找到')
+        return
+      }
+      initCesium()
+    }, 0)
 
     /**
      * 添加示例建筑
@@ -24,7 +38,7 @@ const CesiumViewer = () => {
       try {
         const viewerPosition = Cesium.Cartesian3.fromDegrees(116.3974, 39.9093, 0)
 
-        // 添加中国尊（模拟）
+        // 添加中国（模拟）
         const positions = []
         const numberOfPoints = 16
         for (let i = 0; i < numberOfPoints; i++) {
@@ -39,7 +53,7 @@ const CesiumViewer = () => {
         positions.push(positions[0]) // 闭合多边形
 
         viewer.entities.add({
-          name: '中国尊',
+          name: '中国',
           polygon: {
             hierarchy: new Cesium.PolygonHierarchy(positions),
             extrudedHeight: 500,
@@ -75,6 +89,12 @@ const CesiumViewer = () => {
 
     const initCesium = async () => {
       try {
+        // 确保容器存在
+        if (!cesiumContainer.current) {
+          console.error('❌ Cesium 容器未找到')
+          return
+        }
+
         // 创建 Viewer 配置
         const viewerOptions: any = {
           // 基础控件设置
@@ -121,8 +141,8 @@ const CesiumViewer = () => {
         if (VITE_CESIUM_ION_TOKEN) {
           try {
             const ionImagery = await Cesium.IonImageryProvider.fromAssetId(2)
-            ionImagery.alpha = 0.3 // 30% 透明度
-            viewer.imageryLayers.addImageryProvider(ionImagery, 1)
+            const ionLayer = viewer.imageryLayers.addImageryProvider(ionImagery, 1)
+            ionLayer.alpha = 0.3 // 30% 透明度
           } catch (error) {
             console.warn('无法加载 Cesium Ion 影像，可能需要配置正确的 token')
           }
@@ -161,10 +181,11 @@ const CesiumViewer = () => {
       }
     }
 
-    initCesium()
-
     // 清理函数
     return () => {
+      // 清除初始化定时器
+      clearTimeout(initTimer)
+
       if (viewerRef.current) {
         viewerRef.current.destroy()
         viewerRef.current = null
@@ -173,14 +194,19 @@ const CesiumViewer = () => {
   }, [buildingsLoaded])
 
   return (
-    <div
-      ref={cesiumContainer}
-      style={{
-        width: '100%',
-        height: '100%',
-        background: '#1a1a1a',
-      }}
-    />
+    <>
+      {viewerRef.current?.scene?.globe && (
+        <MapLayerControl viewer={viewerRef.current} currentCity="北京" />
+      )}
+      <div
+        ref={cesiumContainer}
+        style={{
+          width: '100%',
+          height: '100%',
+          background: '#1a1a1a',
+        }}
+      />
+    </>
   )
 }
 

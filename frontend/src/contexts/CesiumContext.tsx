@@ -36,7 +36,7 @@ export const CesiumProvider = ({ children }: { children: ReactNode }) => {
       try {
         const viewerPosition = Cesium.Cartesian3.fromDegrees(116.3974, 39.9093, 0)
 
-        // 添加中国尊
+        // 添加中国
         const positions = []
         const numberOfPoints = 16
         for (let i = 0; i < numberOfPoints; i++) {
@@ -51,7 +51,7 @@ export const CesiumProvider = ({ children }: { children: ReactNode }) => {
         positions.push(positions[0])
 
         cesiumViewer.entities.add({
-          name: '中国尊',
+          name: '中国',
           polygon: {
             hierarchy: new Cesium.PolygonHierarchy(positions),
             extrudedHeight: 500,
@@ -114,7 +114,7 @@ export const CesiumProvider = ({ children }: { children: ReactNode }) => {
         }
 
         // 创建Cesium Viewer
-        const cesiumViewer = new Cesium.Viewer(cesiumContainerRef.current, viewerOptions)
+        const cesiumViewer = new Cesium.Viewer(cesiumContainerRef.current as HTMLElement, viewerOptions)
 
         // 添加高德地图作为主底图
         const amapImageryProvider = new Cesium.UrlTemplateImageryProvider({
@@ -129,8 +129,8 @@ export const CesiumProvider = ({ children }: { children: ReactNode }) => {
         if (VITE_CESIUM_ION_TOKEN) {
           try {
             const ionImagery = await Cesium.IonImageryProvider.fromAssetId(2)
-            ionImagery.alpha = 0.3
-            cesiumViewer.imageryLayers.addImageryProvider(ionImagery, 1)
+            const ionLayer = cesiumViewer.imageryLayers.addImageryProvider(ionImagery, 1)
+            ionLayer.alpha = 0.3
           } catch (error) {
             console.warn('无法加载 Cesium Ion 影像')
           }

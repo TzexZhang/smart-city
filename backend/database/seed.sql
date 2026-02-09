@@ -27,7 +27,7 @@ INSERT INTO tb_ai_models (id, provider_code, model_code, model_name, description
 
 -- 插入示例建筑数据（北京市地标建筑）
 INSERT INTO tb_buildings (id, name, category, height, longitude, latitude, address, district, city, status, floors) VALUES
-('b1', '中国尊', 'landmark', 528.0, 116.4347, 39.9087, '北京市朝阳区CBD核心区', '朝阳区', '北京', 'normal', 108),
+('b1', '中国', 'landmark', 528.0, 116.4347, 39.9087, '北京市朝阳区CBD核心区', '朝阳区', '北京', 'normal', 108),
 ('b2', '国贸三期', 'office', 330.0, 116.4586, 39.9095, '北京市朝阳区建国门外大街1号', '朝阳区', '北京', 'normal', 74),
 ('b3', '央视总部大楼', 'landmark', 234.0, 116.4732, 39.9129, '北京市朝阳区东三环中路32号', '朝阳区', '北京', 'normal', 52),
 ('b4', '北京银泰中心', 'commercial', 249.9, 116.4561, 39.9072, '北京市朝阳区建国门外大街2号', '朝阳区', '北京', 'normal', 63),

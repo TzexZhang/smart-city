@@ -94,14 +94,25 @@ async def chat_completion(
         db.add(assistant_message)
         await db.commit()
 
-        # 提取tool_calls
+        # 提取tool_calls并转换为前端期望的格式
         actions = []
         if response.tool_calls:
             for tc in response.tool_calls:
+                function = tc.get("function", {})
+                function_name = function.get("name", "")
+                function_args = function.get("arguments", "{}")
+
+                # 解析函数参数
+                try:
+                    import json
+                    parameters = json.loads(function_args) if isinstance(function_args, str) else function_args
+                except:
+                    parameters = {}
+
+                # 转换为前端期望的格式
                 actions.append({
-                    "id": tc.get("id"),
-                    "type": tc.get("type"),
-                    "function": tc.get("function", {})
+                    "type": function_name,  # 直接使用function name作为type
+                    "parameters": parameters
                 })
 
         return {
@@ -112,7 +123,7 @@ async def chat_completion(
                     "role": "assistant",
                     "content": response.content
                 },
-                "actions": actions if actions else None,
+                "actions": actions,  # 总是返回actions列表，即使为空
                 "tokens_used": response.tokens_used
             }
         }
@@ -137,25 +148,42 @@ def get_function_tools():
         {
             "type": "function",
             "function": {
-                "name": "fly_to",
-                "description": "控制3D相机飞行到指定位置",
+                "name": "camera_flyTo",
+                "description": "控制3D相机飞行到指定城市或位置。支持城市名称（如：北京、上海、广州、深圳、香港）或经纬度坐标",
                 "parameters": {
                     "type": "object",
                     "properties": {
+                        "city": {
+                            "type": "string",
+                            "description": "城市名称（支持：北京、上海、广州、深圳、香港、Beijing、Shanghai、Guangzhou、Shenzhen、Hong Kong）",
+                            "enum": ["北京", "上海", "广州", "深圳", "香港", "Beijing", "Shanghai", "Guangzhou", "Shenzhen", "Hong Kong"]
+                        },
                         "longitude": {
                             "type": "number",
-                            "description": "目标经度"
+                            "description": "目标经度（如果没有提供城市名称）"
                         },
                         "latitude": {
                             "type": "number",
-                            "description": "目标纬度"
+                            "description": "目标纬度（如果没有提供城市名称）"
                         },
                         "height": {
                             "type": "number",
-                            "description": "飞行高度(米)"
+                            "description": "飞行高度(米)，默认50000"
+                        },
+                        "duration": {
+                            "type": "number",
+                            "description": "飞行时长(秒)，默认3.0"
+                        },
+                        "heading": {
+                            "type": "number",
+                            "description": "航向角(度)，默认0"
+                        },
+                        "pitch": {
+                            "type": "number",
+                            "description": "俯仰角(度)，默认-45"
                         }
                     },
-                    "required": ["longitude", "latitude"]
+                    "required": []
                 }
             }
         },

@@ -96,7 +96,7 @@ export class AIActionExecutor {
           height
         )
 
-        return await this.viewer.camera.flyTo({
+        this.viewer.camera.flyTo({
           destination: destination,
           duration: params.duration || 2,
           orientation: {
@@ -104,7 +104,10 @@ export class AIActionExecutor {
             pitch: Cesium.Math.toRadians(-45),
             roll: 0.0
           }
-        }).then(() => true)
+        })
+        return new Promise((resolve) => {
+          setTimeout(() => resolve(true), (params.duration || 2) * 1000)
+        })
       }
 
       // 如果有地名，尝试查找（这里需要扩展地名到坐标的映射）
@@ -131,13 +134,13 @@ export class AIActionExecutor {
       '伦敦': { lon: -0.1276, lat: 51.5074, height: 50000 },
       '东京': { lon: 139.6917, lat: 35.6895, height: 50000 },
       '巴黎': { lon: 2.3522, lat: 48.8566, height: 50000 },
-      '中国尊': { lon: 116.3974, lat: 39.9093, height: 2000 },
+      '中国': { lon: 116.3974, lat: 39.9093, height: 2000 },
     }
 
     // 模糊匹配
     for (const [name, coords] of Object.entries(cityCoordinates)) {
       if (locationName.includes(name) || name.includes(locationName)) {
-        return await this.viewer.camera.flyTo({
+        this.viewer.camera.flyTo({
           destination: Cesium.Cartesian3.fromDegrees(coords.lon, coords.lat, coords.height),
           duration: duration,
           orientation: {
@@ -145,7 +148,10 @@ export class AIActionExecutor {
             pitch: Cesium.Math.toRadians(-45),
             roll: 0.0
           }
-        }).then(() => true)
+        })
+        return new Promise((resolve) => {
+          setTimeout(() => resolve(true), duration * 1000)
+        })
       }
     }
 
