@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import * as Cesium from 'cesium'
 import MapLayerControl from './MapLayerControl'
+import { useCesiumViewer } from '../contexts/CesiumContext'
 
 // 配置 Cesium Ion Access Token
 // 请在 https://ion.cesium.com/tokens 获取您的免费 token
@@ -13,9 +14,16 @@ if ((Cesium as any).Ion && VITE_CESIUM_ION_TOKEN) {
 const CesiumViewer = () => {
   const cesiumContainer = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<Cesium.Viewer | null>(null)
-  const [buildingsLoaded, setBuildingsLoaded] = useState(false)
+  const buildingsLoadedRef = useRef(false)  // 使用ref避免触发重新渲染
+  const { registerViewer, unregisterViewer } = useCesiumViewer()
 
   useEffect(() => {
+    // 防止重复初始化
+    if (viewerRef.current) {
+      console.log('⚠️ Viewer 已存在，跳过重复初始化')
+      return
+    }
+
     // 确保容器存在并且已经挂载到 DOM
     if (!cesiumContainer.current) {
       console.warn('⏳ Cesium 容器未准备好，等待下次渲染...')
@@ -162,11 +170,11 @@ const CesiumViewer = () => {
         viewer.scene.globe.enableLighting = true
 
         // 如果有 token，添加 OSM Buildings（全球3.5亿建筑）
-        if (VITE_CESIUM_ION_TOKEN && !buildingsLoaded) {
+        if (VITE_CESIUM_ION_TOKEN && !buildingsLoadedRef.current) {
           try {
             const buildingsTileset = await Cesium.createOsmBuildingsAsync();
             viewer.scene.primitives.add(buildingsTileset);
-            setBuildingsLoaded(true)
+            buildingsLoadedRef.current = true
             console.log('✅ Cesium OSM Buildings 加载成功')
           } catch (error) {
             console.warn('加载 OSM Buildings 失败:', error)
@@ -175,6 +183,35 @@ const CesiumViewer = () => {
 
         // 添加示例建筑
         addSampleBuildings(viewer)
+
+        // 延迟注册 viewer 到 context，确保 Cesium 内部完全初始化
+        setTimeout(() => {
+          // ✅ 检查viewer是否已被销毁
+          if (!viewerRef.current || viewerRef.current.isDestroyed()) {
+            console.warn('⚠️ Viewer 已被销毁，取消注册')
+            return
+          }
+
+          // 验证 viewer 的关键属性是否存在
+          try {
+            const hasScene = !!(viewer as any).scene
+            const hasCamera = !!(viewer as any).camera
+            const hasEntities = !!(viewer as any).entities
+
+            if (hasScene && hasCamera && hasEntities) {
+              registerViewer(viewer)
+              console.log('✅ Cesium Viewer 初始化完成并已注册（scene、camera、entities 都就绪）')
+            } else {
+              console.warn('⚠️ Viewer 创建但部分属性未就绪:', { hasScene, hasCamera, hasEntities })
+              // 即使部分属性未就绪，也尝试注册（让上层决定如何处理）
+              registerViewer(viewer)
+            }
+          } catch (error) {
+            console.error('❌ 验证 viewer 属性时出错:', error)
+            // ❌ 出错时不注册已销毁的viewer
+            console.warn('⚠️ Viewer 验证失败，不注册到 Context')
+          }
+        }, 200) // 延迟 200ms
 
       } catch (error) {
         console.error('Cesium初始化失败:', error)
@@ -189,9 +226,11 @@ const CesiumViewer = () => {
       if (viewerRef.current) {
         viewerRef.current.destroy()
         viewerRef.current = null
+        unregisterViewer()
+        console.log('🧹 Cesium Viewer 已清理并从 Context 注销')
       }
     }
-  }, [buildingsLoaded])
+  }, []) // ✅ 空依赖数组 - 只运行一次，不会重复初始化
 
   return (
     <>

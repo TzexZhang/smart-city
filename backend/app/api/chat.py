@@ -6,6 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import uuid
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 from app.database import get_db
 from app.core.deps import get_current_user
@@ -74,13 +77,55 @@ async def chat_completion(
     # 调用AI服务
     ai_service = AIService(db)
     try:
-        response = await ai_service.chat_completion(
-            user_id=current_user.id,
-            messages=messages,
-            model=config.model_name if config else "glm-4-flash",
-            temperature=float(config.temperature) if config else 0.7,
-            tools=tools
-        )
+        # 尝试调用AI服务，如果未配置Provider则使用模拟响应
+        try:
+            response = await ai_service.chat_completion(
+                user_id=current_user.id,
+                messages=messages,
+                model=config.model_name if config else "glm-4-flash",
+                temperature=float(config.temperature) if config else 0.7,
+                tools=tools
+            )
+        except ValueError as e:
+            if "未配置可用的AI Provider" in str(e):
+                # 使用简单的规则匹配作为fallback
+                logger.warning("⚠️ 未配置AI Provider，使用简单规则匹配")
+
+                actions = []
+                message_lower = message_content.lower()
+
+                # 简单的城市名称匹配
+                city_keywords = {
+                    '上海': '上海', '北京': '北京', '广州': '广州', '深圳': '深圳',
+                    '香港': '香港', 'hangzhou': '杭州', 'shanghai': '上海',
+                    'beijing': '北京', 'guangzhou': '广州', 'shenzhen': '深圳',
+                    'hong kong': '香港'
+                }
+
+                for city_name, city_value in city_keywords.items():
+                    if city_name in message_lower or city_value in message_content:
+                        actions.append({
+                            "type": "camera_flyTo",
+                            "parameters": {"city": city_value}
+                        })
+                        break
+
+                # 模拟AI响应
+                from app.services.ai.providers import ChatCompletionResponse
+                response = ChatCompletionResponse(
+                    content=f"好的，正在为您执行相关操作。",
+                    model="rule-based",
+                    tokens_used={"total_tokens": 0},
+                    finish_reason="stop",
+                    tool_calls=None
+                )
+
+                if actions:
+                    logger.info(f"✅ 规则匹配到 actions: {actions}")
+                else:
+                    logger.warning(f"⚠️ 未匹配到规则，输入: {message_content}")
+            else:
+                raise
 
         # 保存助手回复
         assistant_message = AIConversation(

@@ -46,14 +46,112 @@ const HomePage = () => {
 
   // 当 viewer ready 时初始化 action executor
   useEffect(() => {
+    // 安全地检查 viewer 属性
+    const checkViewerState = () => {
+      try {
+        return {
+          viewer存在: !!viewer,
+          viewerReady,
+          camera存在: viewer ? !!(viewer as any).camera : false,
+          scene存在: viewer ? !!(viewer as any).scene : false,
+        }
+      } catch (error) {
+        return {
+          viewer存在: !!viewer,
+          viewerReady,
+          camera存在: false,
+          scene存在: false,
+          检查错误: true
+        }
+      }
+    }
+
+    const state = checkViewerState()
+    console.log('🔍 [Executor初始化检查] 状态:', {
+      ...state,
+      executor已存在: !!actionExecutorRef.current,
+      时间: new Date().toLocaleTimeString()
+    })
+
+    // 尝试初始化 executor
+    const tryInitExecutor = () => {
+      if (!viewer || !viewerReady) return false
+
+      try {
+        // 检查 camera 是否可访问
+        const hasCamera = !!(viewer as any).camera
+        const hasScene = !!(viewer as any).scene
+
+        if (hasCamera && hasScene && !actionExecutorRef.current) {
+          actionExecutorRef.current = new SimpleAIActionExecutor(viewer)
+          console.log('✅ SimpleAIActionExecutor 已初始化！', new Date().toLocaleTimeString())
+          return true
+        }
+        return false
+      } catch (error) {
+        console.warn('⚠️ 无法初始化 Executor:', error)
+        return false
+      }
+    }
+
+    // 立即尝试初始化
+    if (tryInitExecutor()) {
+      return
+    }
+
+    // 如果初始化失败，延迟后重试
     if (viewer && viewerReady && !actionExecutorRef.current) {
-      actionExecutorRef.current = new SimpleAIActionExecutor(viewer)
-      console.log('✅ SimpleAIActionExecutor 已初始化')
+      console.warn('⚠️ Viewer 就绪但无法立即初始化，延迟重试...')
+      setTimeout(() => {
+        tryInitExecutor()
+      }, 100)
+
+      // 设置轮询检查
+      const checkInterval = setInterval(() => {
+        if (tryInitExecutor() || actionExecutorRef.current) {
+          clearInterval(checkInterval)
+        }
+      }, 200)
+
+      // 5秒后停止检查
+      setTimeout(() => clearInterval(checkInterval), 5000)
     }
   }, [viewer, viewerReady])
 
+  // 额外的监控：确保 executor 在 viewerReady 后被创建
+  useEffect(() => {
+    if (viewerReady && viewer && !actionExecutorRef.current) {
+      const tryInit = () => {
+        try {
+          const hasCamera = !!(viewer as any).camera
+          if (hasCamera && !actionExecutorRef.current) {
+            actionExecutorRef.current = new SimpleAIActionExecutor(viewer)
+            console.log('✅ Executor 通过备用方法初始化')
+            return true
+          }
+          return false
+        } catch {
+          return false
+        }
+      }
+
+      if (!tryInit()) {
+        // 延迟后再次尝试
+        setTimeout(tryInit, 200)
+      }
+    }
+  }, [viewerReady])
+
   const handleSend = async () => {
     if (!inputValue.trim() || loading) return
+
+    console.log('🚀 [handleSend] 开始发送消息')
+    console.log('   当前状态:', {
+      viewer: !!viewer,
+      viewerReady,
+      executor存在: !!actionExecutorRef.current,
+      时间: new Date().toLocaleTimeString()
+    })
 
     const userMessage = inputValue.trim()
     setInputValue('')
@@ -76,15 +174,39 @@ const HomePage = () => {
         message: userMessage,
       })
 
+      console.log('📨 后端响应:', res.data)
+
       if (res.data.session_id) {
         setSessionId(res.data.session_id)
       }
 
       // 执行 AI 返回的 actions
       let executionResult: any = undefined
+      console.log('🔍 [执行前检查] 状态:', {
+        hasActions: !!res.data.actions,
+        actionsLength: res.data.actions?.length || 0,
+        hasExecutor: !!actionExecutorRef.current
+      })
+
+      // 如果 executor 不存在但 viewer 存在，立即初始化
+      if (!actionExecutorRef.current && viewer) {
+        console.warn('⚠️ Executor 未初始化但 Viewer 存在，立即初始化...')
+        actionExecutorRef.current = new SimpleAIActionExecutor(viewer)
+        console.log('✅ Executor 已手动初始化')
+      }
+
       if (res.data.actions && res.data.actions.length > 0 && actionExecutorRef.current) {
+        console.log('🎯 开始执行 actions:', res.data.actions)
         executionResult = await actionExecutorRef.current.executeActions(res.data.actions)
+        console.log('✅ 执行结果:', executionResult)
         message.info(`已执行 ${executionResult.data?.successCount || 0} 个动作`)
+      } else {
+        if (!res.data.actions || res.data.actions.length === 0) {
+          console.warn('⚠️ 后端未返回 actions')
+        }
+        if (!actionExecutorRef.current) {
+          console.error('❌ actionExecutor 未初始化！ viewer:', !!viewer, 'viewerReady:', viewerReady)
+        }
       }
 
       // 添加AI回复
