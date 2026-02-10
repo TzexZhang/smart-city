@@ -34,7 +34,7 @@ app.add_middleware(
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # 导入路由
-from app.api import auth, users, ai, chat, buildings, simulation, execution
+from app.api import auth, users, ai, chat, buildings, simulation, execution, spatial_analysis, weather, map_tiles
 
 # 注册路由
 app.include_router(auth.router, prefix="/api/v1")
@@ -44,6 +44,9 @@ app.include_router(chat.router, prefix="/api/v1")
 app.include_router(buildings.router)
 app.include_router(simulation.router)
 app.include_router(execution.router)
+app.include_router(spatial_analysis.router)
+app.include_router(weather.router)
+app.include_router(map_tiles.router)
 
 # 挂载静态文件服务
 app.mount("/static", StaticFiles(directory="uploads"), name="static")

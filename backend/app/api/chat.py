@@ -15,6 +15,8 @@ from app.core.deps import get_current_user
 from app.models import AIConversation, User, UserConfig
 from app.services.ai_service import AIService
 from app.services.ai.providers import Message
+from app.services.mcp import get_mcp_manager, DataEnhancementClient
+from app.services.weather_scene_service import execute_weather_scene_action
 
 router = APIRouter(prefix="/chat", tags=["聊天"])
 
@@ -154,11 +156,35 @@ async def chat_completion(
                 except:
                     parameters = {}
 
-                # 转换为前端期望的格式
-                actions.append({
-                    "type": function_name,  # 直接使用function name作为type
-                    "parameters": parameters
-                })
+                # 特殊处理：query_and_apply_weather 需要展开为多个actions
+                if function_name == "query_and_apply_weather":
+                    logger.info(f"🎬 检测到天气场景请求，生成组合actions")
+                    scene_result = await execute_weather_scene_action(
+                        city=parameters.get("city"),
+                        latitude=parameters.get("latitude"),
+                        longitude=parameters.get("longitude")
+                    )
+
+                    if scene_result.get("error"):
+                        # 如果失败，添加错误提示
+                        logger.error(f"❌ 生成天气场景失败: {scene_result['error']}")
+                        actions.append({
+                            "type": "error",
+                            "parameters": {
+                                "message": scene_result['error']
+                            }
+                        })
+                    else:
+                        # 将组合actions添加到列表
+                        scene_actions = scene_result.get("actions", [])
+                        actions.extend(scene_actions)
+                        logger.info(f"✅ 生成 {len(scene_actions)} 个场景actions")
+                else:
+                    # 普通action，直接添加
+                    actions.append({
+                        "type": function_name,
+                        "parameters": parameters
+                    })
 
         return {
             "code": 200,
@@ -185,6 +211,135 @@ async def chat_completion(
         await db.commit()
 
         raise
+
+
+async def query_with_database_fallback(
+    db: AsyncSession,
+    query_params: dict,
+    mcp_manager=None
+) -> dict:
+    """
+    数据库优先查询策略
+
+    优先级: 本地数据库 -> Redis缓存 -> MCP增强查询 -> AI生成补充
+
+    Args:
+        db: 数据库会话
+        query_params: 查询参数
+        mcp_manager: MCP管理器（可选）
+
+    Returns:
+        查询结果
+    """
+    from app.models import Building
+    from sqlalchemy import and_, or_
+
+    logger.info(f"🔍 数据库优先查询: {query_params}")
+
+    try:
+        # 1. 尝试从本地数据库查询
+        conditions = []
+
+        city = query_params.get("city")
+        if city:
+            conditions.append(Building.city == city)
+
+        district = query_params.get("district")
+        if district:
+            conditions.append(Building.district == district)
+
+        min_height = query_params.get("min_height")
+        if min_height is not None:
+            conditions.append(Building.height >= min_height)
+
+        max_height = query_params.get("max_height")
+        if max_height is not None:
+            conditions.append(Building.height <= max_height)
+
+        category = query_params.get("category")
+        if category:
+            conditions.append(Building.category == category)
+
+        risk_level = query_params.get("risk_level")
+        if risk_level is not None:
+            conditions.append(Building.risk_level >= risk_level)
+
+        keyword = query_params.get("keyword")
+        if keyword:
+            conditions.append(
+                or_(
+                    Building.name.contains(keyword),
+                    Building.address.contains(keyword),
+                    Building.description.contains(keyword)
+                )
+            )
+
+        # 执行查询
+        query = db.query(Building).filter(and_(*conditions))
+        buildings = query.limit(50).all()
+
+        if buildings:
+            logger.info(f"✅ 从数据库找到 {len(buildings)} 条记录")
+
+            results = []
+            for b in buildings:
+                results.append({
+                    "id": b.id,
+                    "name": b.name,
+                    "category": b.category,
+                    "height": float(b.height) if b.height else None,
+                    "longitude": float(b.longitude),
+                    "latitude": float(b.latitude),
+                    "address": b.address,
+                    "district": b.district,
+                    "city": b.city,
+                    "risk_level": b.risk_level,
+                })
+
+            return {
+                "source": "database",
+                "total": len(results),
+                "buildings": results,
+                "query_params": query_params
+            }
+
+        # 2. 数据库无结果，尝试MCP增强查询
+        if mcp_manager:
+            logger.info("📡 数据库无结果，尝试MCP增强查询")
+            try:
+                mcp_result = await mcp_manager.call_tool(
+                    "data-enhancement",
+                    "search_buildings",
+                    query_params
+                )
+
+                if mcp_result.get("status") == "success" and mcp_result.get("buildings"):
+                    logger.info(f"✅ MCP查询找到 {len(mcp_result['buildings'])} 条记录")
+                    return {
+                        "source": "mcp",
+                        **mcp_result
+                    }
+            except Exception as e:
+                logger.warning(f"⚠️ MCP查询失败: {e}")
+
+        # 3. 无数据源返回结果，返回空结果
+        logger.info("ℹ️ 所有数据源均无结果")
+        return {
+            "source": "none",
+            "total": 0,
+            "buildings": [],
+            "message": "未找到匹配的建筑数据",
+            "query_params": query_params
+        }
+
+    except Exception as e:
+        logger.error(f"❌ 查询失败: {e}")
+        return {
+            "source": "error",
+            "error": str(e),
+            "total": 0,
+            "buildings": []
+        }
 
 
 def get_function_tools():
@@ -258,15 +413,137 @@ def get_function_tools():
             "type": "function",
             "function": {
                 "name": "query_buildings",
-                "description": "查询符合条件的建筑物列表",
+                "description": "查询符合条件的建筑物列表（优先从数据库查询）",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "city": {"type": "string"},
                         "district": {"type": "string"},
                         "min_height": {"type": "number"},
-                        "category": {"type": "string"}
+                        "max_height": {"type": "number"},
+                        "category": {"type": "string"},
+                        "risk_level": {"type": "number"},
+                        "keyword": {"type": "string"}
                     }
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "spatial_buffer",
+                "description": "缓冲区分析 - 分析指定半径范围内的建筑分布",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "longitude": {"type": "number", "description": "圆心经度"},
+                        "latitude": {"type": "number", "description": "圆心纬度"},
+                        "radius": {"type": "number", "description": "半径(米)，默认1000"},
+                        "min_height": {"type": "number", "description": "最小高度过滤"},
+                        "category": {"type": "string", "description": "建筑类型过滤"}
+                    },
+                    "required": ["longitude", "latitude"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "spatial_viewshed",
+                "description": "视域分析 - 分析从观察点可见的区域",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "longitude": {"type": "number", "description": "观察点经度"},
+                        "latitude": {"type": "number", "description": "观察点纬度"},
+                        "observer_height": {"type": "number", "description": "观察者高度(米)，默认50"},
+                        "radius": {"type": "number", "description": "分析半径(米)，默认1000"}
+                    },
+                    "required": ["longitude", "latitude"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "spatial_accessibility",
+                "description": "可达性分析 - 分析指定时间内的可达范围",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "longitude": {"type": "number", "description": "起点经度"},
+                        "latitude": {"type": "number", "description": "起点纬度"},
+                        "mode": {"type": "string", "description": "交通方式: driving, walking, transit", "enum": ["driving", "walking", "transit"]},
+                        "time_limit": {"type": "number", "description": "时间限制(分钟)，默认15"}
+                    },
+                    "required": ["longitude", "latitude"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "set_weather",
+                "description": "设置3D场景的天气效果（雨、雪、雾、晴天等）和日夜光照",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "condition": {
+                            "type": "string",
+                            "enum": ["clear", "cloudy", "rain", "snow", "fog"],
+                            "description": "天气条件"
+                        },
+                        "intensity": {
+                            "type": "number",
+                            "description": "天气强度(0-1)，默认0.5"
+                        },
+                        "is_day": {
+                            "type": "boolean",
+                            "description": "是否白天，默认true"
+                        }
+                    }
+                },
+                "required": ["condition"]
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "获取指定城市或位置的实时天气数据，并自动应用到3D场景",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "city": {
+                            "type": "string",
+                            "description": "城市名称（如：Beijing, Shanghai, London）"
+                        },
+                        "latitude": {
+                            "type": "number",
+                            "description": "纬度（与city二选一）"
+                        },
+                        "longitude": {
+                            "type": "number",
+                            "description": "经度（与city二选一）"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "query_and_apply_weather",
+                "description": "查询城市天气并自动应用完整场景：飞行到该城市 → 获取实时天气 → 应用天气效果（雨/雪/雾+昼夜光照）。例如：'西安天气'会飞到西安、获取天气、显示对应的天气效果。",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "city": {
+                            "type": "string",
+                            "description": "城市名称（支持：北京、上海、广州、深圳、香港、西安、成都、杭州等，Beijing、Shanghai等）"
+                        }
+                    },
+                    "required": ["city"]
                 }
             }
         }

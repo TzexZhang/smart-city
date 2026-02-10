@@ -29,7 +29,13 @@
       "Bash(\".venv\\\\Scripts\\\\python.exe\" -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000)",
       "Bash(\".venv\\\\Scripts\\\\python.exe\" -m uvicorn main:app --reload --host 0.0.0.0 --port 8000)",
       "Bash(curl:*)",
-      "mcp__zai-mcp-server__analyze_image"
+      "mcp__zai-mcp-server__analyze_image",
+      "Bash(npm install:*)",
+      "Bash(if exist node_modules.vite rmdir /s /q:*)",
+      "Bash(npm run dev)",
+      "Bash(where:*)",
+      "Bash(.venv/Scripts/python.exe:*)",
+      "Bash(npm run dev:*)"
     ]
   }
 }

@@ -30,3 +30,9 @@ openai>=1.54.0
 # Async HTTP client
 aiohttp>=3.9.0
 httpx>=0.27.0
+
+# Spatial analysis
+shapely>=2.0.0
+
+# Note: MCP integration is optional - system works with fallback to direct API calls
+# If you want to enable MCP, ensure Python 3.10+ and resolve anyio conflicts first

@@ -10,8 +10,7 @@ from decimal import Decimal
 import math
 
 from app.database import get_db
-from app.models import Building, User
-from app.core.deps import get_current_user
+from app.models import Building
 
 router = APIRouter(prefix="/api/v1/buildings", tags=["建筑资产"])
 
@@ -27,8 +26,7 @@ async def search_buildings(
     keyword: Optional[str] = Query(None, description="关键词搜索"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     搜索建筑资产
@@ -103,8 +101,7 @@ async def search_in_circle(
     radius: float = Query(..., gt=0, description="半径(米)"),
     min_height: Optional[float] = Query(None),
     category: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     圆形范围搜索
@@ -168,8 +165,7 @@ async def get_building_categories(db: Session = Depends(get_db)):
 @router.get("/statistics/overview")
 async def get_building_statistics(
     city: Optional[str] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     建筑统计概览

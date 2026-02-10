@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Button, Dropdown, Space, Divider } from 'antd'
+import { Button, Dropdown, Space } from 'antd'
 import {
   PictureOutlined,
   GlobalOutlined,
@@ -198,28 +198,30 @@ export const MapLayerControl: React.FC<MapLayerControlProps> = ({ viewer, curren
       style={{
         position: 'absolute',
         top: '10px',
-        right: '10px',
+        left: '10px',
         zIndex: 1000,
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        padding: '12px',
-        borderRadius: '8px',
+        padding: '8px 12px',
+        borderRadius: '6px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-        minWidth: '200px',
+        minWidth: '160px',
+        fontSize: '12px',
       }}
     >
-      <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '14px' }}>
-        <EnvironmentOutlined style={{ marginRight: '8px' }} />
-        当前城市: {currentCity}
+      {/* 紧凑的标题行 */}
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px', fontSize: '12px' }}>
+        <EnvironmentOutlined style={{ marginRight: '4px', fontSize: '12px', color: '#1890ff' }} />
+        <span style={{ fontWeight: 500, color: '#262626' }}>{currentCity}</span>
+        <span style={{ margin: '0 4px', color: '#d9d9d9' }}>|</span>
+        <span style={{ color: '#8c8c8c' }}>{getCurrentLayerName()}</span>
       </div>
-      <Divider style={{ margin: '8px 0' }} />
-      <div style={{ marginBottom: '8px', fontSize: '13px', color: '#666' }}>
-        底图: {getCurrentLayerName()}
-      </div>
+
       {!viewerReady && (
-        <div style={{ marginBottom: '8px', fontSize: '12px', color: '#faad14' }}>
-          ⏳ 地图初始化中...
+        <div style={{ marginBottom: '6px', fontSize: '11px', color: '#faad14' }}>
+          ⏳ 初始化中...
         </div>
       )}
+
       <Dropdown
         menu={{ items }}
         trigger={['click']}
@@ -227,9 +229,11 @@ export const MapLayerControl: React.FC<MapLayerControlProps> = ({ viewer, curren
       >
         <Button
           type="primary"
+          size="small"
           block
           icon={<BgColorsOutlined />}
           disabled={!viewerReady}
+          style={{ fontSize: '12px', height: '28px' }}
         >
           切换底图
         </Button>
