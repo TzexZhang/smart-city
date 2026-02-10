@@ -757,20 +757,54 @@ export class SimpleAIActionExecutor {
   }
 
   /**
-   * 设置天气效果
+   * 设置天气效果（支持地点参数，自动飞行到指定地点）
    */
   private async executeSetWeather(params: any): Promise<ActionResult> {
     console.log('🌤️ 设置天气效果:', params)
 
     try {
       const {
+        city,
+        latitude,
+        longitude,
         condition,
         intensity = 0.5,
         is_day = true,
         temperature,
         humidity,
-        wind_speed
+        wind_speed,
+        height = 500 // 飞行高度
       } = params
+
+      // 如果提供了地点信息，先飞行到该地点
+      if (city || (latitude && longitude)) {
+        console.log('✈️ 准备飞行到指定地点...')
+
+        // 构建飞行参数
+        const flyParams: any = {}
+        if (city) {
+          flyParams.city = city
+        }
+        if (latitude && longitude) {
+          flyParams.longitude = longitude
+          flyParams.latitude = latitude
+        }
+        flyParams.height = height
+
+        // 执行飞行
+        const flyResult = await this.executeFlyTo(flyParams)
+
+        if (!flyResult.success) {
+          return {
+            success: false,
+            message: `无法飞行到指定地点: ${flyResult.message}`
+          }
+        }
+
+        // 等待飞行完成
+        await this.sleep((height / 500 * 1000) + 1000) // 粗略估算飞行时间 + 1秒缓冲
+        console.log('✅ 已到达目标地点，开始设置天气...')
+      }
 
       // 验证天气条件
       const validConditions = ['clear', 'cloudy', 'rain', 'snow', 'fog']
@@ -800,14 +834,21 @@ export class SimpleAIActionExecutor {
 
       const conditionName = conditionNames[weatherCondition] || weatherCondition
 
+      let message = `已切换到${conditionName}天气效果`
+      if (city || (latitude && longitude)) {
+        const locationName = city || `(${latitude?.toFixed(4)}, ${longitude?.toFixed(4)})`
+        message = `已飞行到${locationName}，切换到${conditionName}天气效果`
+      }
+
       return {
         success: true,
-        message: `已切换到${conditionName}天气效果`,
+        message: message,
         data: {
           condition: weatherCondition,
           conditionName,
           intensity,
-          isDay: is_day
+          isDay: is_day,
+          location: city || { latitude, longitude }
         }
       }
     } catch (error: any) {

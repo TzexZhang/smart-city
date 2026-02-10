@@ -114,6 +114,18 @@ const ChatInput: React.FC<ChatInputProps> = ({
                       ),
                     },
                     {
+                      key: 'weather',
+                      label: <span style={styles.categoryLabel}>🌤️ 天气效果</span>,
+                      children: (
+                        <div style={styles.hintItems}>
+                          <div>• "切换到雨天"</div>
+                          <div>• "设置北京的天气为雪天"</div>
+                          <div>• "上海多云天气"</div>
+                          <div>• "深圳的大雾天气"</div>
+                        </div>
+                      ),
+                    },
+                    {
                       key: 'analysis',
                       label: <span style={styles.categoryLabel}>📊 空间分析</span>,
                       children: (
@@ -153,7 +165,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           onKeyPress={handleKeyPress}
           placeholder={
             showHints
-              ? "试试：飞行到北京 / 查询高层建筑 / 切换卫星影像"
+              ? "试试：飞行到北京 / 设置北京为雨天 / 查询高层建筑"
               : "输入消息，按Enter发送，Shift+Enter换行..."
           }
           autoSize={{ minRows: 3, maxRows: 6 }}
