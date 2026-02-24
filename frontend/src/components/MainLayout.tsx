@@ -19,6 +19,7 @@ import { useAuthStore } from '../stores/authStore'
 import { useCesiumViewer } from '../contexts/CesiumContext'
 import AIConfigModal from '../components/AIConfigModal'
 import UserSettingsModal from '../components/UserSettingsModal'
+import * as Cesium from 'cesium'
 
 const { Header, Sider, Content } = Layout
 
@@ -81,7 +82,7 @@ const MainLayout = () => {
         </span>
       ),
       onClick: () => handleSwitchLayer('amap', () =>
-        new (window as any).Cesium.UrlTemplateImageryProvider({
+        new Cesium.UrlTemplateImageryProvider({
           url: 'http://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
           minimumLevel: 3,
           maximumLevel: 18,
@@ -97,7 +98,7 @@ const MainLayout = () => {
         </span>
       ),
       onClick: () => handleSwitchLayer('satellite', () =>
-        new (window as any).Cesium.UrlTemplateImageryProvider({
+        new Cesium.UrlTemplateImageryProvider({
           url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
           maximumLevel: 18,
         })
@@ -112,7 +113,7 @@ const MainLayout = () => {
         </span>
       ),
       onClick: () => handleSwitchLayer('terrain', () =>
-        new (window as any).Cesium.UrlTemplateImageryProvider({
+        new Cesium.UrlTemplateImageryProvider({
           url: 'http://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',
           minimumLevel: 3,
           maximumLevel: 18,
@@ -128,7 +129,7 @@ const MainLayout = () => {
         </span>
       ),
       onClick: () => handleSwitchLayer('building', () =>
-        new (window as any).Cesium.UrlTemplateImageryProvider({
+        new Cesium.UrlTemplateImageryProvider({
           url: 'http://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=9&x={x}&y={y}&z={z}',
           minimumLevel: 3,
           maximumLevel: 18,
